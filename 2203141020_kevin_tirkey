@@ -1,0 +1,80 @@
+import pandas as pd
+import re
+import fileinput
+import nltk
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
+from gensim.models import Word2Vec
+import numpy as np
+import warnings
+# filter warnings
+warnings.filterwarnings('ignore')
+
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from wordcloud import WordCloud, STOPWORDS
+
+
+df= pd.read_csv("Tweets.csv")
+
+
+df.columns=['label','tweet']
+
+df=df.drop(df.columns[0], axis=1)
+
+#converting dataframe's string to clean text
+
+df['tweet'] = df['tweet'].str.lower()
+def clean_text(text):
+
+    text = re.sub(r'http\S+|www\S+|2x80xa6\S+|@\S+|#\S+|[^A-Za-z0-9\s]', '', text)
+
+    text = text.lower()
+
+    words = text.split()
+
+    words = [w for w in words if w not in stopwords.words("english")]
+
+    words = [PorterStemmer().stem(w) for w in words]
+
+    return words
+    return text
+
+#Save clean_text file
+df['clean_text'] = df['tweet'].apply(clean_text)
+df.to_csv('clean_text_data.csv')
+
+#Next(2nd stage) using word2vec
+df=df.drop([])
+df.shape
+
+clean_words = df['clean_text'].tolist()
+print("After converting a DataFrame column to a list:\n", clean_words)
+
+# Train Word2Vec model
+model = Word2Vec(sentences=clean_words, vector_size=100, window=5, min_count=1, workers=4)
+
+# Function to convert words to vectors
+def words_to_vectors(words, model):
+    vectors = []
+    for word in words:
+        if word in model.wv:
+            vectors.append(model.wv[word])
+        else:
+            vectors.append(np.zeros(model.vector_size))  
+    return vectors
+
+# Convert clean words to vectors
+vectors_list = [words_to_vectors(words, model) for words in clean_words]
+
+
+#print(model.wv['clean_words'])
+
+print("Vectors dimension:",len(vectors_list))
+model.save("word2vec.model")
+
+#Display vectors for the first sublist in clean_words
+print("Vectors for the first sublist:")
+print(vectors_list[0])
